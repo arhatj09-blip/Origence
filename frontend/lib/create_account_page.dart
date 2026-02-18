@@ -1,41 +1,24 @@
 import 'package:flutter/material.dart';
-import 'dashboard_page.dart';
-import 'create_account_page.dart';
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class CreateAccountPage extends StatefulWidget {
+  const CreateAccountPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Origence',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-      ),
-      home: const LoginScreen(),
-    );
-  }
+  State<CreateAccountPage> createState() => _CreateAccountPageState();
 }
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
-
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
+class _CreateAccountPageState extends State<CreateAccountPage> {
   final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -44,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      appBar: AppBar(title: const Text('Create Account')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -55,42 +38,48 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Icon(
-                      Icons.verified,
-                      color: Colors.indigo[700],
-                      size: 64,
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      return null;
+                    },
                   ),
-                  Text(
-                    'Origence',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo[800],
-                      letterSpacing: 1.2,
+                  const SizedBox(height: 18),
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone),
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your phone number';
+                      }
+                      return null;
+                    },
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Verify Document Originality',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 18),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      prefixIcon: Icon(Icons.email_outlined),
+                      border: OutlineInputBorder(),
                       filled: true,
                       fillColor: Colors.white,
                     ),
@@ -108,9 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      border: const OutlineInputBorder(),
                       filled: true,
                       fillColor: Colors.white,
                       suffixIcon: IconButton(
@@ -133,8 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 10),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -153,40 +139,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const DashboardPage(),
-                            ),
-                          );
+                          // No backend logic, just UI validation
                         }
                       },
-                      child: const Text('Login'),
+                      child: const Text('Create Account'),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Don't have an account? ",
-                        style: TextStyle(fontSize: 15),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CreateAccountPage(),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.indigo[700],
-                        ),
-                        child: const Text('Create Account'),
-                      ),
-                    ],
                   ),
                 ],
               ),
