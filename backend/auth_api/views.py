@@ -34,20 +34,32 @@ def register(request):
 
 @csrf_exempt
 def login(request):
+    import sys
+    print(f"[DEBUG] login() called. Method: {request.method}", file=sys.stderr)
+    print(f"[DEBUG] Body: {request.body}", file=sys.stderr)
     if request.method == 'POST':
-        data = json.loads(request.body)
-        username = data.get('username', '').strip()
-        password = data.get('password', '').strip()
         try:
-            user = User.objects.get(username=username)
-            if check_password(password, user.password):
-                return JsonResponse({'success': True, 'username': user.username, 'user_id': user.id})
-            else:
-                return JsonResponse({'success': False, 'message': 'Invalid credentials'}, status=400)
-        except User.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'Invalid credentials'}, status=400)
-    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=405)
+            data = json.loads(request.body)
+        except Exception as e:
+            print(f"[DEBUG] JSON decode error: {e}", file=sys.stderr)
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+        username_or_email = data.get('username', '').strip() or data.get('email', '').strip()
+        password = data.get('password', '').strip()
+        print(f"[DEBUG] username_or_email: {username_or_email}, password: {'*' * len(password)}", file=sys.stderr)
+        if not username_or_email or not password:
+            return JsonResponse({'status': 'error', 'message': 'All fields required'}, status=400)
+        user = (User.objects.filter(username=username_or_email).first() or
+                User.objects.filter(email=username_or_email).first())
+        if user and check_password(password, user.password):
+            request.session['user_id'] = user.id
+            return JsonResponse({'status': 'success', 'username': user.username})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid credentials'}, status=401)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=405)
 
 @csrf_exempt
 def logout(request):
-    return JsonResponse({'success': True, 'message': 'Logged out'})
+    if request.method == 'POST':
+        request.session.flush()
+        return JsonResponse({'status': 'success', 'message': 'Logged out successfully'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=405)
