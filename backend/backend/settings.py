@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'auth_api',
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -68,3 +69,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings (for Flutter app communication)
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Media files (uploaded documents)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

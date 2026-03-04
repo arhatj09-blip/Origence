@@ -4,8 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Use 10.0.2.2 for Android emulator to access host machine's localhost
-  static const String _baseUrl = 'http://10.0.2.2:8000/api/';
+  // Use localhost for web; 10.0.2.2 for Android emulator
+  static String get _baseUrl =>
+      kIsWeb ? 'http://localhost:8000/api/' : 'http://10.0.2.2:8000/api/';
 
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -105,6 +106,40 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       return {'status': 'success', 'message': 'Logged out locally'};
+    }
+  }
+
+  // ---------- Upload Document ----------
+  // filePath: local path of the file to upload
+  static Future<Map<String, dynamic>> uploadDocument({
+    required String filePath,
+    required String username,
+  }) async {
+    final url = '${_baseUrl}upload-document/';
+
+    debugPrint('[API] UPLOAD $url');
+    debugPrint('[API] filePath: $filePath');
+
+    try {
+      final uri = Uri.parse(url);
+      final request = http.MultipartRequest('POST', uri);
+
+      // include username so backend can associate file with user
+      request.fields['username'] = username;
+
+      final multipartFile = await http.MultipartFile.fromPath('file', filePath);
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint('[API] Status: ${response.statusCode}');
+      debugPrint('[API] Response: ${response.body}');
+
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('[API] UPLOAD ERROR: $e');
+      return {'status': 'error', 'message': 'Upload failed: $e'};
     }
   }
 
