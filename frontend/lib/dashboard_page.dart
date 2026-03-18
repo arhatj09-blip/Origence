@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'main.dart';
 import 'package:file_selector/file_selector.dart';
-import 'dart:io';
 
 class DashboardPage extends StatefulWidget {
   final String username;
@@ -130,26 +130,34 @@ class _DashboardPageState extends State<DashboardPage> {
         return;
       }
 
-      final path = picked.path;
-      if (path.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unsupported platform for file path')),
+      Map<String, dynamic> resp;
+
+      if (kIsWeb) {
+        // On web: read file bytes (dart:io is not available)
+        final fileBytes = await picked.readAsBytes();
+        final filename = picked.name;
+
+        resp = await ApiService.uploadDocument(
+          fileBytes: fileBytes,
+          filename: filename,
+          username: widget.username,
         );
-        return;
+      } else {
+        // On native platforms: use file path
+        final path = picked.path;
+        if (path.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not resolve file path')),
+          );
+          return;
+        }
+
+        resp = await ApiService.uploadDocument(
+          filePath: path,
+          username: widget.username,
+        );
       }
 
-      final file = File(path);
-      if (!await file.exists()) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('File not found')));
-        return;
-      }
-
-      final resp = await ApiService.uploadDocument(
-        filePath: path,
-        username: widget.username,
-      );
       if (resp['status'] == 'success') {
         ScaffoldMessenger.of(
           context,
