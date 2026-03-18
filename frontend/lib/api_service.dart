@@ -110,15 +110,19 @@ class ApiService {
   }
 
   // ---------- Upload Document ----------
-  // filePath: local path of the file to upload
   static Future<Map<String, dynamic>> uploadDocument({
-    required String filePath,
+    // For mobile/desktop provide `filePath` (local filesystem path).
+    // For web provide `fileBytes` and `filename` instead.
+    String? filePath,
+    Uint8List? fileBytes,
+    String? filename,
     required String username,
   }) async {
     final url = '${_baseUrl}upload-document/';
 
     debugPrint('[API] UPLOAD $url');
     debugPrint('[API] filePath: $filePath');
+    debugPrint('[API] filename: $filename');
 
     try {
       final uri = Uri.parse(url);
@@ -127,8 +131,32 @@ class ApiService {
       // include username so backend can associate file with user
       request.fields['username'] = username;
 
-      final multipartFile = await http.MultipartFile.fromPath('file', filePath);
-      request.files.add(multipartFile);
+      if (kIsWeb) {
+        // On web: use MultipartFile.fromBytes (no dart:html needed)
+        if (fileBytes == null || filename == null) {
+          return {
+            'status': 'error',
+            'message': 'On web provide fileBytes and filename when uploading.',
+          };
+        }
+
+        request.files.add(
+          http.MultipartFile.fromBytes('file', fileBytes, filename: filename),
+        );
+      } else {
+        if (filePath == null) {
+          return {
+            'status': 'error',
+            'message': 'filePath is required on non-web platforms.',
+          };
+        }
+
+        final multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+        );
+        request.files.add(multipartFile);
+      }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
