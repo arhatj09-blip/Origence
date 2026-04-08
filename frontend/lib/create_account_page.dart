@@ -10,9 +10,7 @@ class CreateAccountPage extends StatefulWidget {
 
 class _CreateAccountPageState extends State<CreateAccountPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -23,25 +21,15 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
-  }
+  String? _selectedRole;
 
-  bool _isAlphabetsOnly(String value) {
-    return RegExp(r'^[a-zA-Z\s]+$').hasMatch(value);
-  }
-
-  bool _isDigitsOnly(String value) {
-    return RegExp(r'^\d+$').hasMatch(value);
-  }
+  // removing unused validation helpers
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
@@ -52,10 +40,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     });
 
     final result = await ApiService.register(
-      username: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
+      username: _usernameController.text.trim(),
       password: _passwordController.text.trim(),
+      role: _selectedRole ?? 'student',
     );
 
     if (!mounted) return;
@@ -102,11 +89,11 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ---------- Name ----------
+                  // ---------- Username ----------
                   TextFormField(
-                    controller: _nameController,
+                    controller: _usernameController,
                     decoration: const InputDecoration(
-                      labelText: 'Name',
+                      labelText: 'Username',
                       prefixIcon: Icon(Icons.person_outline),
                       border: OutlineInputBorder(),
                       filled: true,
@@ -114,64 +101,48 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your name';
-                      }
-                      if (!_isAlphabetsOnly(value.trim())) {
-                        return 'Name must contain only alphabets';
+                        return 'Please enter your username';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 18),
 
-                  // ---------- Phone ----------
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
+                  // ---------- Role ----------
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedRole,
                     decoration: const InputDecoration(
-                      labelText: 'Phone Number',
-                      prefixIcon: Icon(Icons.phone),
+                      labelText: 'Role',
+                      prefixIcon: Icon(Icons.badge_outlined),
                       border: OutlineInputBorder(),
                       filled: true,
                       fillColor: Colors.white,
                     ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'student',
+                        child: Text('Student'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'faculty',
+                        child: Text('Faculty'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedRole = value;
+                      });
+                    },
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your phone number';
-                      }
-                      if (!_isDigitsOnly(value.trim())) {
-                        return 'Phone number must contain only digits';
-                      }
-                      if (value.trim().length != 10) {
-                        return 'Phone number must be exactly 10 digits';
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a role';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 18),
 
-                  // ---------- Email ----------
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!_isValidEmail(value.trim())) {
-                        return 'Please enter a valid email address';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 18),
+
 
                   // ---------- Password ----------
                   TextFormField(

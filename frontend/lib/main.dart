@@ -32,7 +32,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
@@ -40,13 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
   }
 
   Future<void> _handleLogin() async {
@@ -55,21 +51,12 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final email = _emailController.text.trim();
+    final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
-
-    // Client-side email format validation
-    if (!_isValidEmail(email)) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Invalid email format';
-      });
-      return;
-    }
 
     try {
       final result = await ApiService.login(
-        username: email,
+        username: username,
         password: password,
       );
 
@@ -81,12 +68,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Backend returns {"status": "success", "username": "..."} on success
       if (result['status'] == 'success') {
+        final role = result['role'] ?? 'student';
+        final usernameStr = result['username'] ?? 'User';
+
+        Widget nextScreen = StudentDashboardPage(username: usernameStr);
+        if (role == 'faculty') {
+          nextScreen = FacultyDashboardPage(username: usernameStr);
+        }
+
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (context) =>
-                DashboardPage(username: result['username'] ?? 'User'),
-          ),
+          MaterialPageRoute(builder: (context) => nextScreen),
           (route) => false, // Remove all previous routes
         );
       } else {
@@ -106,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFF0F0F1A),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -121,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Icon(
                       Icons.verified,
-                      color: Colors.indigo[700],
+                      color: Colors.indigo[300],
                       size: 64,
                     ),
                   ),
@@ -130,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.indigo[800],
+                      color: Colors.white,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -139,29 +131,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Verify Document Originality',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey[700],
+                      color: Colors.white70,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: _usernameController,
+                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      labelText: 'Username',
+                      prefixIcon: const Icon(Icons.person_outline),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: const Color(0xFF1A1A2E),
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      prefixIconColor: Colors.white54,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.indigo.shade900),
+                      ),
                     ),
+                    style: const TextStyle(color: Colors.white),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!_isValidEmail(value.trim())) {
-                        return 'Please enter a valid email address';
+                        return 'Please enter your username';
                       }
                       return null;
                     },
@@ -170,6 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
@@ -177,7 +174,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: const Color(0xFF1A1A2E),
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      prefixIconColor: Colors.white54,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.indigo.shade900),
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -203,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (_errorMessage != null) ...[
                     Text(
                       _errorMessage!,
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(color: Colors.redAccent),
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -211,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo[700],
+                        backgroundColor: Colors.indigo[600],
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -248,7 +251,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       const Text(
                         "Don't have an account? ",
-                        style: TextStyle(fontSize: 15),
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Color.fromARGB(179, 255, 255, 255),
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
@@ -260,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                         },
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.indigo[700],
+                          foregroundColor: Colors.indigo[300],
                         ),
                         child: const Text('Create Account'),
                       ),
