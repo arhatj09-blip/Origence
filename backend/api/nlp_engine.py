@@ -1,0 +1,146 @@
+import re
+import string
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
+from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer, util
+
+# Load AI model once (IMPORTANT for performance)
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+
+# ------------------ PREPROCESSING ------------------
+
+def clean_text(text):
+    text = text.lower()
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    words = text.split()
+    words = [w for w in words if w not in ENGLISH_STOP_WORDS]
+    return " ".join(words)
+
+
+def split_sentences(text):
+    text = text.strip()
+    if not text:
+        return []
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    return [s.strip() for s in sentences if s.strip()]    
+
+
+# ------------------ SIMILARITY METHODS ------------------
+
+def tfidf_similarity(s1, s2):
+    if not s1.strip() or not s2.strip():
+        return 0.0
+    try:
+        tfidf = TfidfVectorizer()
+        vectors = tfidf.fit_transform([s1, s2])
+        return cosine_similarity(vectors[0], vectors[1])[0][0]
+    except Exception:
+        return 0.0
+
+
+def ngram_similarity(s1, s2, n=3):
+    def get_ngrams(text):
+        words = text.split()
+        return set(zip(*[words[i:] for i in range(n)]))
+
+    n1 = get_ngrams(s1)
+    n2 = get_ngrams(s2)
+
+    if not n1 or not n2:
+        return 0
+
+    return len(n1 & n2) / len(n1 | n2)
+
+
+def ai_similarity(s1, s2):
+    if not s1.strip() or not s2.strip():
+        return 0.0
+    try:
+        e1 = model.encode(s1, convert_to_tensor=True)
+        e2 = model.encode(s2, convert_to_tensor=True)
+        return util.cos_sim(e1, e2).item()
+    except Exception:
+        return 0.0
+
+
+# ------------------ MAIN FUNCTION ------------------
+
+def compare_docs(doc1, doc2):
+    # Check if documents are empty
+    if not doc1.strip() or not doc2.strip():
+        return 0.0
+
+    # Clean full documents
+    doc1 = clean_text(doc1)
+    doc2 = clean_text(doc2)
+
+    # If after cleaning, empty, return 0
+    if not doc1 or not doc2:
+        return 0.0
+
+    # Split into sentences
+    sents1 = split_sentences(doc1)
+    sents2 = split_sentences(doc2)
+
+    # If no sentences, return 0
+    if not sents1 or not sents2:
+        return 0.0
+
+    total_score = 0
+    count = 0
+
+    for s1 in sents1:
+        best_score = 0
+
+        for s2 in sents2:
+            try:
+                tf = tfidf_similarity(s1, s2)
+                ng = ngram_similarity(s1, s2)
+                ai = ai_similarity(s1, s2)
+
+                # Weighted score
+                score = (0.55 * tf) + (0.25 * ng) + (0.20 * ai)
+
+                best_score = max(best_score, score)
+            except Exception:
+                # If any similarity method fails, skip this pair
+                continue
+
+        if best_score > 0:
+            total_score += best_score
+            count += 1
+
+    if count == 0:
+        return 0
+
+    return total_score / count
+
+
+# ------------------ OPTIONAL: DEBUG FUNCTION ------------------
+
+def compare_with_details(doc1, doc2):
+    doc1 = clean_text(doc1)
+    doc2 = clean_text(doc2)
+
+    sents1 = split_sentences(doc1)
+    sents2 = split_sentences(doc2)
+
+    results = []
+
+    for s1 in sents1:
+        for s2 in sents2:
+            tf = tfidf_similarity(s1, s2)
+            ng = ngram_similarity(s1, s2)
+            ai = ai_similarity(s1, s2)
+
+            score = (0.55 * tf) + (0.25 * ng) + (0.20 * ai)
+
+            if score > 0.7:
+                results.append({
+                    "sentence_1": s1,
+                    "sentence_2": s2,
+                    "score": round(score, 2)
+                })
+
+    return results
