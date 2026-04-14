@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'main.dart';
+import 'batch_detail_page.dart';
 import 'package:file_selector/file_selector.dart';
 
 // ============================================================================
@@ -53,6 +54,7 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
   Future<void> _showCreateBatchDialog() async {
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
+    final thresholdCtrl = TextEditingController(text: '0.80');
     final formKey = GlobalKey<FormState>();
 
     await showDialog(
@@ -83,6 +85,27 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: thresholdCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Similarity Threshold (0.0 - 1.0)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Required';
+                  }
+                  final value = double.tryParse(v);
+                  if (value == null || value < 0.0 || value > 1.0) {
+                    return 'Enter a number between 0 and 1';
+                  }
+                  return null;
+                },
+              ),
             ],
           ),
         ),
@@ -103,6 +126,7 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
                 username: widget.username,
                 batchName: nameCtrl.text.trim(),
                 batchCode: codeCtrl.text.trim(),
+                similarityThreshold: double.parse(thresholdCtrl.text.trim()),
               );
               if (!mounted) return;
               if (resp['status'] == 'success') {
@@ -121,6 +145,75 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
               }
             },
             child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showUpdateThresholdDialog(Map<String, dynamic> batch) async {
+    final thresholdCtrl = TextEditingController(
+      text: (batch['similarity_threshold'] ?? 0.8).toString(),
+    );
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Update Similarity Threshold'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: thresholdCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Threshold (0.0 - 1.0)',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Required';
+              }
+              final value = double.tryParse(v);
+              if (value == null || value < 0.0 || value > 1.0) {
+                return 'Enter a number between 0 and 1';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final value = double.parse(thresholdCtrl.text.trim());
+              final resp = await ApiService.setBatchThreshold(
+                username: widget.username,
+                batchId: batch['id'] as int,
+                similarityThreshold: value,
+              );
+              if (!mounted) return;
+              Navigator.pop(ctx);
+              if (resp['status'] == 'success') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Threshold updated to $value')),
+                );
+                await _loadBatches();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      resp['message'] ?? 'Failed to update threshold',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -158,11 +251,37 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
                         ),
                       ),
                       title: Text(b['batch_name'] ?? ''),
-                      subtitle: Text('Code: ${b['batch_code']}'),
-                      trailing: Chip(
-                        label: Text('${b['member_count']} students'),
-                        backgroundColor: Colors.indigo[50],
+                      subtitle: Text(
+                        'Code: ${b['batch_code']} · Threshold: ${double.tryParse((b['similarity_threshold'] ?? 0.8).toString())?.toStringAsFixed(2) ?? '0.80'}',
                       ),
+                      trailing: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        children: [
+                          Chip(
+                            label: Text('${b['member_count']} students'),
+                            backgroundColor: Colors.indigo[50],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            tooltip: 'Update threshold',
+                            onPressed: () => _showUpdateThresholdDialog(b),
+                          ),
+                        ],
+                      ),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BatchDetailPage(
+                              username: widget.username,
+                              batchId: b['id'] as int,
+                              batchName: b['batch_name'] as String,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -321,23 +440,37 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: _batches.take(6).map((b) {
-                    return Chip(
-                      avatar: CircleAvatar(
-                        backgroundColor: Colors.indigo[700],
-                        child: Text(
-                          (b['batch_name'] as String)[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BatchDetailPage(
+                              username: widget.username,
+                              batchId: b['id'] as int,
+                              batchName: b['batch_name'] as String,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Chip(
+                        avatar: CircleAvatar(
+                          backgroundColor: Colors.indigo[700],
+                          child: Text(
+                            (b['batch_name'] as String)[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                            ),
                           ),
                         ),
+                        label: Text(
+                          '${b['batch_name']}  ·  ${b['batch_code']}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: const Color(0xFF1E1E3F),
+                        side: BorderSide(color: Colors.indigo.shade800),
                       ),
-                      label: Text(
-                        '${b['batch_name']}  ·  ${b['batch_code']}',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      backgroundColor: const Color(0xFF1E1E3F),
-                      side: BorderSide(color: Colors.indigo.shade800),
                     );
                   }).toList(),
                 ),
@@ -746,15 +879,39 @@ class _BatchDetailsPageState extends State<BatchDetailsPage> {
       }
 
       if (!mounted) return;
-      if (resp['status'] == 'success') {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Uploaded successfully!')));
+      final highestSimilarity = resp['highest_similarity'];
+      final accepted = resp['status'] == 'success';
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(accepted ? 'Upload Accepted' : 'Upload Rejected'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                resp['message'] ??
+                    (accepted
+                        ? 'Your document was uploaded.'
+                        : 'Your document was rejected.'),
+              ),
+              const SizedBox(height: 12),
+              if (highestSimilarity != null)
+                Text(
+                  'Highest similarity: ${double.parse(highestSimilarity.toString()).toStringAsFixed(2)}',
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      if (accepted) {
         await _loadDocuments();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(resp['message'] ?? 'Upload failed')),
-        );
       }
     } catch (e) {
       if (mounted) {

@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -8,6 +9,11 @@ class Batch(models.Model):
         'auth_api.User',
         on_delete=models.CASCADE,
         related_name='created_batches',
+    )
+    similarity_threshold = models.FloatField(
+        default=0.8,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text='Maximum allowed similarity score for new documents in this batch',
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -36,6 +42,11 @@ class StudentBatchMapping(models.Model):
 
 
 class Document(models.Model):
+    STATUS_CHOICES = [
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+    
     user = models.ForeignKey(
         'auth_api.User',
         on_delete=models.CASCADE,
@@ -50,6 +61,20 @@ class Document(models.Model):
     )
     file_name = models.CharField(max_length=255)
     file = models.FileField(upload_to='documents/')
+    extracted_text = models.TextField(blank=True, null=True)
+    similarity_score = models.FloatField(
+        default=0.0,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        null=True,
+        blank=True,
+        help_text='Highest similarity score compared to existing documents in the batch',
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='accepted',
+        help_text='Whether the document was accepted or rejected based on threshold',
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

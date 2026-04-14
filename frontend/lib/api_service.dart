@@ -93,12 +93,15 @@ class ApiService {
     required String username,
     required String batchName,
     required String batchCode,
+    double? similarityThreshold,
   }) async {
     final url = '${_baseUrl}create-batch/';
     final body = jsonEncode({
       'username': username,
       'batch_name': batchName,
       'batch_code': batchCode,
+      if (similarityThreshold != null)
+        'similarity_threshold': similarityThreshold,
     });
     debugPrint('[API] POST $url');
     try {
@@ -121,6 +124,33 @@ class ApiService {
   }) async {
     final url = '${_baseUrl}get-batches/';
     final body = jsonEncode({'username': username});
+    debugPrint('[API] POST $url');
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers,
+        body: body,
+      );
+      debugPrint('[API] ${response.statusCode} ${response.body}');
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('[API] ERROR: $e');
+      return {'status': 'error', 'message': 'Network error: $e'};
+    }
+  }
+
+  // ---------- Set Batch Threshold (Faculty) ----------
+  static Future<Map<String, dynamic>> setBatchThreshold({
+    required String username,
+    required int batchId,
+    required double similarityThreshold,
+  }) async {
+    final url = '${_baseUrl}set-batch-threshold/';
+    final body = jsonEncode({
+      'username': username,
+      'batch_id': batchId,
+      'similarity_threshold': similarityThreshold,
+    });
     debugPrint('[API] POST $url');
     try {
       final response = await http.post(
@@ -305,6 +335,28 @@ class ApiService {
     } catch (e) {
       debugPrint('[API] UPLOAD ERROR: $e');
       return {'status': 'error', 'message': 'Upload failed: $e'};
+    }
+  }
+
+  // ---------- Get Batch Details with Students and Document Status (Faculty) ----------
+  static Future<Map<String, dynamic>> getBatchDetails({
+    required String username,
+    required int batchId,
+  }) async {
+    final url = '${_baseUrl}get-batch-details/';
+    final body = jsonEncode({'username': username, 'batch_id': batchId});
+    debugPrint('[API] POST $url batch_id=$batchId');
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers,
+        body: body,
+      );
+      debugPrint('[API] ${response.statusCode} ${response.body}');
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('[API] ERROR: $e');
+      return {'status': 'error', 'message': 'Network error: $e'};
     }
   }
 }
