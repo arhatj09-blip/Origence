@@ -314,6 +314,7 @@ def upload_document(request):
         existing_docs = Document.objects.filter(batch=batch).exclude(extracted_text__isnull=True).exclude(extracted_text='')
         threshold = batch.similarity_threshold
         max_similarity = 0.0
+        status = 'accepted'  # by default
 
         if existing_docs.exists():
             for doc in existing_docs:
@@ -322,28 +323,36 @@ def upload_document(request):
 
             if max_similarity >= threshold:
                 # Reject: too similar
-                # Delete the saved file
-                default_storage.delete(saved_path)
-                return JsonResponse({
-                    'status': 'error',
-                    'message': f'Document is too similar to existing documents (similarity: {max_similarity:.2f})',
-                    'highest_similarity': max_similarity
-                }, status=400)
+                status = 'rejected'
 
-        # Accept: save to DB
-        Document.objects.create(
+        # Always save the document with its similarity score and status
+        document = Document.objects.create(
             user=user,
             batch=batch,
             file_name=upload.name,
             file=saved_path,
             extracted_text=extracted_text,
+            similarity_score=max_similarity,
+            status=status,
         )
 
-        return JsonResponse({
-            'status': 'success',
-            'message': 'Document uploaded successfully',
-            'highest_similarity': max_similarity
-        })
+        # Return appropriate message based on status
+        if status == 'rejected':
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Document was rejected: similarity score {max_similarity:.2f} exceeds threshold {threshold:.2f}',
+                'document_id': document.id,
+                'similarity_score': max_similarity,
+                'threshold': threshold,
+            }, status=400)
+        else:
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Document uploaded successfully',
+                'document_id': document.id,
+                'highest_similarity': max_similarity,
+                'threshold': threshold,
+            })
 
     except Exception as e:
         # Catch any unexpected errors and return JSON
@@ -400,3 +409,97 @@ def get_batch_documents(request):
     ]
 
     return JsonResponse({'status': 'success', 'documents': docs_data})
+
+
+# ---------------------------------------------------------------------------
+# FACULTY: Get Batch Details with Students and Document Status
+# ---------------------------------------------------------------------------
+@csrf_exempt
+def get_batch_details(request):
+    """
+    POST: /api/get-batch-details/
+    Required: username (faculty), batch_id
+    
+    Returns batch information with all students and their document upload status.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, Exception):
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+    username = data.get('username', '').strip()
+    batch_id = data.get('batch_id')
+
+    if not username or batch_id is None:
+        return JsonResponse(
+            {'status': 'error', 'message': 'username and batch_id are required'},
+            status=400,
+        )
+
+    try:
+        faculty = User.objects.get(username=username, role='faculty')
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Faculty user not found'}, status=404)
+
+    try:
+        batch = Batch.objects.get(id=int(batch_id), created_by=faculty)
+    except (Batch.DoesNotExist, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid batch or unauthorized'}, status=404)
+
+    # Get all students who joined this batch
+    memberships = StudentBatchMapping.objects.filter(batch=batch).select_related('student').order_by('joined_at')
+
+    # Build student list with document status
+    students_data = []
+    for membership in memberships:
+        student = membership.student
+        
+        # Get documents uploaded by this student in this batch
+        documents = Document.objects.filter(user=student, batch=batch).order_by('-uploaded_at')
+        
+        # Get the latest document for this student
+        latest_doc = documents.first()
+        
+        student_info = {
+            'student_id': student.id,
+            'username': student.username,
+            'joined_at': membership.joined_at.isoformat(),
+            'document_uploaded': documents.exists(),
+            'document_details': None,
+        }
+        
+        # Add document details if uploaded
+        if latest_doc:
+            student_info['document_details'] = {
+                'document_id': latest_doc.id,
+                'file_name': latest_doc.file_name,
+                'uploaded_at': latest_doc.uploaded_at.isoformat(),
+                'similarity_score': latest_doc.similarity_score if latest_doc.similarity_score is not None else 0.0,
+                'status': latest_doc.status,  # 'accepted' or 'rejected'
+            }
+        else:
+            student_info['document_details'] = {
+                'file_name': 'Not uploaded yet',
+                'uploaded_at': None,
+                'similarity_score': None,
+                'status': 'pending',
+            }
+        
+        students_data.append(student_info)
+
+    # Return batch details with all students
+    batch_details = {
+        'batch_id': batch.id,
+        'batch_name': batch.batch_name,
+        'batch_code': batch.batch_code,
+        'similarity_threshold': batch.similarity_threshold,
+        'created_at': batch.created_at.isoformat(),
+        'total_students': len(students_data),
+        'documents_count': Document.objects.filter(batch=batch).count(),
+        'students': students_data,
+    }
+
+    return JsonResponse({'status': 'success', 'batch': batch_details})

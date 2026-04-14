@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'main.dart';
+import 'batch_detail_page.dart';
 import 'package:file_selector/file_selector.dart';
 
 // ============================================================================
@@ -91,7 +92,9 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
                   labelText: 'Similarity Threshold (0.0 - 1.0)',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'Required';
@@ -197,15 +200,15 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
               Navigator.pop(ctx);
               if (resp['status'] == 'success') {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Threshold updated to $value'),
-                  ),
+                  SnackBar(content: Text('Threshold updated to $value')),
                 );
                 await _loadBatches();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(resp['message'] ?? 'Failed to update threshold'),
+                    content: Text(
+                      resp['message'] ?? 'Failed to update threshold',
+                    ),
                   ),
                 );
               }
@@ -266,6 +269,19 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
                           ),
                         ],
                       ),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BatchDetailPage(
+                              username: widget.username,
+                              batchId: b['id'] as int,
+                              batchName: b['batch_name'] as String,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -424,23 +440,37 @@ class _FacultyDashboardPageState extends State<FacultyDashboardPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: _batches.take(6).map((b) {
-                    return Chip(
-                      avatar: CircleAvatar(
-                        backgroundColor: Colors.indigo[700],
-                        child: Text(
-                          (b['batch_name'] as String)[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BatchDetailPage(
+                              username: widget.username,
+                              batchId: b['id'] as int,
+                              batchName: b['batch_name'] as String,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Chip(
+                        avatar: CircleAvatar(
+                          backgroundColor: Colors.indigo[700],
+                          child: Text(
+                            (b['batch_name'] as String)[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                            ),
                           ),
                         ),
+                        label: Text(
+                          '${b['batch_name']}  ·  ${b['batch_code']}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: const Color(0xFF1E1E3F),
+                        side: BorderSide(color: Colors.indigo.shade800),
                       ),
-                      label: Text(
-                        '${b['batch_name']}  ·  ${b['batch_code']}',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      backgroundColor: const Color(0xFF1E1E3F),
-                      side: BorderSide(color: Colors.indigo.shade800),
                     );
                   }).toList(),
                 ),
@@ -859,11 +889,17 @@ class _BatchDetailsPageState extends State<BatchDetailsPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(resp['message'] ??
-                  (accepted ? 'Your document was uploaded.' : 'Your document was rejected.')),
+              Text(
+                resp['message'] ??
+                    (accepted
+                        ? 'Your document was uploaded.'
+                        : 'Your document was rejected.'),
+              ),
               const SizedBox(height: 12),
               if (highestSimilarity != null)
-                Text('Highest similarity: ${double.parse(highestSimilarity.toString()).toStringAsFixed(2)}'),
+                Text(
+                  'Highest similarity: ${double.parse(highestSimilarity.toString()).toStringAsFixed(2)}',
+                ),
             ],
           ),
           actions: [

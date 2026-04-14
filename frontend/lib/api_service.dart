@@ -337,4 +337,26 @@ class ApiService {
       return {'status': 'error', 'message': 'Upload failed: $e'};
     }
   }
+
+  // ---------- Get Batch Details with Students and Document Status (Faculty) ----------
+  static Future<Map<String, dynamic>> getBatchDetails({
+    required String username,
+    required int batchId,
+  }) async {
+    final url = '${_baseUrl}get-batch-details/';
+    final body = jsonEncode({'username': username, 'batch_id': batchId});
+    debugPrint('[API] POST $url batch_id=$batchId');
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers,
+        body: body,
+      );
+      debugPrint('[API] ${response.statusCode} ${response.body}');
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('[API] ERROR: $e');
+      return {'status': 'error', 'message': 'Network error: $e'};
+    }
+  }
 }
