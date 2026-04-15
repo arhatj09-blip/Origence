@@ -4,21 +4,32 @@ Origence is a batch-based academic plagiarism detection system designed to ensur
 
 🚀 Features:
 👨‍🏫 Faculty
-Create batches with unique batch codes
-Set allowed similarity threshold
-View all created batches
-View students joined in each batch
-Track student submissions:
-Uploaded / Not Uploaded
-Accepted / Rejected
-Similarity score
-Monitor document status batch-wise
+- Create batches with unique batch codes
+- Set allowed similarity threshold
+- View all created batches
+- View students joined in each batch
+- Track student submissions:
+  - Uploaded / Not Uploaded
+  - Accepted / Rejected
+  - Similarity score
+- **View all uploaded documents within each batch**
+- Monitor document status batch-wise
 👨‍🎓 Student
-Register and login with role-based access
-Join batches using batch code
-Upload documents only inside a batch
-Automatic plagiarism checking before upload
-Upload allowed only if similarity < threshold
+- Register and login with role-based access
+- Join batches using batch code
+- Upload documents only inside a batch
+- Automatic plagiarism checking before upload
+- Upload allowed only if similarity < threshold
+📄 Faculty Document Monitoring
+Faculty can now:
+- View all documents uploaded by students in a batch
+- See which student uploaded which document
+- View:
+  - File name
+  - Upload time
+  - Similarity score
+  - Acceptance status (Accepted / Rejected)
+- Track submission progress of all students in the batch
 
 🧠 Core Logic:
 Each document is compared only with documents in the same batch
@@ -40,14 +51,14 @@ Similarity Check (Batch-wise)
  Accept / Reject
  
 🛠️ Tech Stack:
-Frontend
-Flutter
-Dart
-Backend
-Django (Python)
-REST APIs
-Database
-SQLite
+- Frontend
+- Flutter
+- Dart
+- Backend
+- Django (Python)
+- REST APIs
+- Database
+- SQLite
 
 📂 Project Structure:
 origence/
@@ -78,41 +89,40 @@ flutter pub get
 flutter run
 
 🔐 Authentication System:
-Username + Password based login
-Role-based access:
-Faculty
-Student
+- Username + Password based login
+- Role-based access:
+- Faculty
+- Student
 
 📊 Database Design:
 Key Models:
-User (with role)
-Batch
-Batch Membership (Student ↔ Batch)
-Document
+- User (with role)
+- Batch
+- Batch Membership (Student ↔ Batch)
+- Document
 
 Each document stores:
-
-User
-Batch
-File
-Similarity Score
-Status (Accepted / Rejected)
-Upload Timestamp
+- User
+- Batch
+- File
+- Similarity Score
+- Status (Accepted / Rejected)
+- Upload Timestamp
 
 🔥 Key Highlights:
-Batch-specific plagiarism detection
-Role-based system (Faculty & Student)
-Dynamic threshold control
-Clean UI with structured workflow
-Scalable architecture
+- Batch-specific plagiarism detection
+- Role-based system (Faculty & Student)
+- Dynamic threshold control
+- Clean UI with structured workflow
+- Scalable architecture
 
 📌 Future Enhancements:
-AI-based semantic similarity detection
-PDF highlighting of plagiarized content
-Cross-batch comparison
-Admin panel
-Cloud deployment (AWS / Firebase)
-Notifications system
+- AI-based semantic similarity detection
+- PDF highlighting of plagiarized content
+- Cross-batch comparison
+- Admin panel
+- Cloud deployment (AWS / Firebase)
+- Notifications system
 
 
 🤝 Contribution:
