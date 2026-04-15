@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
+import 'dart:html' as html;
 import 'api_service.dart';
 
 // ============================================================================
@@ -257,6 +260,7 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
     final fileName = docDetails['file_name'] ?? 'Not uploaded yet';
     final status = docDetails['status'] ?? 'pending';
     final similarity = docDetails['similarity_score'];
+    final documentId = docDetails['document_id'] as int?;
 
     String statusDisplay;
     Color statusColor;
@@ -286,11 +290,29 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
       cells: [
         DataCell(Text(username)),
         DataCell(
-          Text(
-            fileName.length > 20 ? '${fileName.substring(0, 17)}...' : fileName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          isDocUploaded && documentId != null
+              ? GestureDetector(
+                  onTap: () => _downloadDocument(documentId, fileName),
+                  child: Text(
+                    fileName.length > 20
+                        ? '${fileName.substring(0, 17)}...'
+                        : fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.blue[600],
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                )
+              : Text(
+                  fileName.length > 20
+                      ? '${fileName.substring(0, 17)}...'
+                      : fileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
         ),
         DataCell(
           Container(
@@ -422,7 +444,30 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            _buildDetailRow('Document Name', fileName),
+            if (isDocUploaded && docDetails['document_id'] != null)
+              Row(
+                children: [
+                  Expanded(child: _buildDetailRow('Document Name', fileName)),
+                  ElevatedButton.icon(
+                    onPressed: () => _downloadDocument(
+                      docDetails['document_id'] as int,
+                      fileName,
+                    ),
+                    icon: const Icon(Icons.download, size: 18),
+                    label: const Text('Download'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      backgroundColor: Colors.blue[600],
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              )
+            else
+              _buildDetailRow('Document Name', fileName),
             const SizedBox(height: 8),
             _buildDetailRow('Upload Time', uploadedDate),
             if (isDocUploaded && similarity != null) ...[
@@ -479,5 +524,82 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _downloadDocument(int documentId, String fileName) async {
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Downloading document...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final fileBytes = await ApiService.downloadDocument(
+        documentId: documentId,
+        username: widget.username,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      if (fileBytes == null || fileBytes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to download document'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // On web, trigger download
+      if (kIsWeb) {
+        _downloadFileWeb(fileBytes, fileName);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Document "$fileName" downloaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        // On mobile, show options to save
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Document "$fileName" downloaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error downloading document: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _downloadFileWeb(Uint8List bytes, String fileName) {
+    // For web platform, create a blob and download
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName)
+      ..click();
+    html.Url.revokeObjectUrl(url);
   }
 }

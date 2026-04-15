@@ -359,4 +359,31 @@ class ApiService {
       return {'status': 'error', 'message': 'Network error: $e'};
     }
   }
+
+  // ---------- Download Document (Faculty) ----------
+  static Future<Uint8List?> downloadDocument({
+    required int documentId,
+    required String username,
+  }) async {
+    final url = '${_baseUrl}download-document/';
+    final body = jsonEncode({'document_id': documentId, 'username': username});
+    debugPrint('[API] POST $url document_id=$documentId');
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers,
+        body: body,
+      );
+      debugPrint('[API] ${response.statusCode}');
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        debugPrint('[API] ERROR: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('[API] ERROR: $e');
+      return null;
+    }
+  }
 }
