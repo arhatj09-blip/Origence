@@ -23,13 +23,27 @@ class BatchDetailPage extends StatefulWidget {
   State<BatchDetailPage> createState() => _BatchDetailPageState();
 }
 
-class _BatchDetailPageState extends State<BatchDetailPage> {
+class _BatchDetailPageState extends State<BatchDetailPage>
+    with SingleTickerProviderStateMixin {
   late Future<Map<String, dynamic>> _batchDetailsFuture;
+  late AnimationController _fadeAnimationController;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
+    _fadeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
     _batchDetailsFuture = _loadBatchDetails();
+    _fadeAnimationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeAnimationController.dispose();
+    super.dispose();
   }
 
   Future<Map<String, dynamic>> _loadBatchDetails() async {
@@ -40,24 +54,39 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
     return response;
   }
 
-  void _refreshBatchDetails() {
+  void _refreshBatchDetails() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    await Future.delayed(const Duration(milliseconds: 300));
     setState(() {
       _batchDetailsFuture = _loadBatchDetails();
     });
+    _fadeAnimationController.reset();
+    _fadeAnimationController.forward();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0F0F1A),
       appBar: AppBar(
         title: Text(widget.batchName),
-        backgroundColor: Colors.indigo[600],
+        backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshBatchDetails,
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: _isRefreshing ? null : _refreshBatchDetails,
             tooltip: 'Refresh',
           ),
         ],
@@ -66,32 +95,64 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
         future: _batchDetailsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Container(
+              color: const Color(0xFF0F0F1A),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.indigo.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading batch details...',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text('Error: ${snapshot.error}'),
+            return Container(
+              color: const Color(0xFF0F0F1A),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Error: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ),
               ),
             );
           }
 
           final response = snapshot.data;
           if (response == null || response['status'] != 'success') {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  response?['message'] ?? 'Failed to load batch details',
+            return Container(
+              color: const Color(0xFF0F0F1A),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    response?['message'] ?? 'Failed to load batch details',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
                 ),
               ),
             );
           }
 
           final batch = response['batch'] as Map<String, dynamic>;
-          return _buildBatchDetailsUI(batch);
+          return FadeTransition(
+            opacity: _fadeAnimationController,
+            child: _buildBatchDetailsUI(batch),
+          );
         },
       ),
     );
@@ -107,108 +168,224 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Batch Info Card
-            Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Batch Information',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo[600],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInfoRow('Batch Name', batchName),
-                    const SizedBox(height: 8),
-                    _buildInfoRow('Batch Code', batchCode),
-                    const SizedBox(height: 8),
-                    _buildInfoRow(
-                      'Similarity Threshold',
-                      '${(threshold.toDouble() * 100).toStringAsFixed(1)}%',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildInfoRow('Total Students', totalStudents.toString()),
-                    const SizedBox(height: 8),
-                    _buildInfoRow(
-                      'Documents Uploaded',
-                      documentsCount.toString(),
-                    ),
-                  ],
+            // ---- Header Gradient Card ----
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.indigo.shade700, Colors.indigo.shade900],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.indigo.withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white24,
+                        child: Icon(
+                          Icons.folder_open,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              batchName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Code: $batchCode',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatItem('Students', totalStudents.toString()),
+                      _buildStatItem('Documents', documentsCount.toString()),
+                      _buildStatItem(
+                        'Threshold',
+                        '${(threshold.toDouble() * 100).toStringAsFixed(0)}%',
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 32),
 
-            // Student & Document Status Table
-            Text(
+            // ---- Batch Information Card ----
+            const Text(
+              'Batch Information',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E3F),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.indigo.shade800, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDarkInfoRow('Batch Name', batchName),
+                  const SizedBox(height: 12),
+                  _buildDarkInfoRow('Batch Code', batchCode),
+                  const SizedBox(height: 12),
+                  _buildDarkInfoRow(
+                    'Similarity Threshold',
+                    '${(threshold.toDouble() * 100).toStringAsFixed(1)}%',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDarkInfoRow('Total Students', totalStudents.toString()),
+                  const SizedBox(height: 12),
+                  _buildDarkInfoRow(
+                    'Documents Uploaded',
+                    documentsCount.toString(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // ---- Student & Document Status Table ----
+            const Text(
               'Student & Document Status',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.indigo[600],
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
               ),
             ),
             const SizedBox(height: 12),
 
             if (students.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
                     'No students have joined this batch yet.',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
                   ),
                 ),
               )
             else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columnSpacing: 12,
-                  columns: const [
-                    DataColumn(label: Text('Student')),
-                    DataColumn(label: Text('Document')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Similarity')),
-                  ],
-                  rows: [
-                    for (final student in students)
-                      _buildStudentRow(student, threshold.toDouble()),
-                  ],
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E3F),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.indigo.shade800, width: 1),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 12,
+                    dataRowColor: MaterialStateProperty.resolveWith(
+                      (states) => const Color(0xFF161629),
+                    ),
+                    headingRowColor: MaterialStateProperty.all(
+                      Colors.indigo.shade900.withOpacity(0.3),
+                    ),
+                    columns: const [
+                      DataColumn(
+                        label: Text(
+                          'Student',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Document',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Status',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Similarity',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                    rows: [
+                      for (final student in students)
+                        _buildStudentRow(student, threshold.toDouble()),
+                    ],
+                  ),
                 ),
               ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 32),
 
-            // Student Details Section
-            Text(
+            // ---- Detailed Student Information ----
+            const Text(
               'Detailed Student Information',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.indigo[600],
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
               ),
             ),
             const SizedBox(height: 12),
 
             if (students.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
                     'No students to display.',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
                   ),
                 ),
               )
@@ -228,7 +405,32 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white60,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDarkInfoRow(String label, String value) {
     return Row(
       children: [
         SizedBox(
@@ -237,7 +439,8 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
             label,
             style: const TextStyle(
               fontWeight: FontWeight.w600,
-              color: Colors.grey,
+              color: Colors.white60,
+              fontSize: 13,
             ),
           ),
         ),
@@ -245,7 +448,11 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
@@ -288,7 +495,7 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
 
     return DataRow(
       cells: [
-        DataCell(Text(username)),
+        DataCell(Text(username, style: const TextStyle(color: Colors.white))),
         DataCell(
           isDocUploaded && documentId != null
               ? GestureDetector(
@@ -300,7 +507,7 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.blue[600],
+                      color: Colors.blue[400],
                       decoration: TextDecoration.underline,
                       fontWeight: FontWeight.w500,
                     ),
@@ -312,6 +519,7 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
                       : fileName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70),
                 ),
         ),
         DataCell(
@@ -332,7 +540,9 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
             ),
           ),
         ),
-        DataCell(Text(similarityDisplay)),
+        DataCell(
+          Text(similarityDisplay, style: const TextStyle(color: Colors.white)),
+        ),
       ],
     );
   }
@@ -393,8 +603,13 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
       // Keep default
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E3F),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.indigo.shade800, width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -412,14 +627,13 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Joined: $joinedDate',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
                       ),
                     ],
                   ),
@@ -432,22 +646,27 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
                     color: statusColor,
                     fontWeight: FontWeight.bold,
                   ),
+                  side: BorderSide(color: statusColor),
                 ),
               ],
             ),
-            const Divider(height: 24),
+            const Divider(height: 24, color: Colors.white24),
             // Document Details
             Text(
               'Document Information',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 8),
             if (isDocUploaded && docDetails['document_id'] != null)
               Row(
                 children: [
-                  Expanded(child: _buildDetailRow('Document Name', fileName)),
+                  Expanded(
+                    child: _buildDarkDetailRow('Document Name', fileName),
+                  ),
                   ElevatedButton.icon(
                     onPressed: () => _downloadDocument(
                       docDetails['document_id'] as int,
@@ -460,30 +679,30 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
                         horizontal: 12,
                         vertical: 8,
                       ),
-                      backgroundColor: Colors.blue[600],
+                      backgroundColor: Colors.indigo.shade700,
                       foregroundColor: Colors.white,
                     ),
                   ),
                 ],
               )
             else
-              _buildDetailRow('Document Name', fileName),
+              _buildDarkDetailRow('Document Name', fileName),
             const SizedBox(height: 8),
-            _buildDetailRow('Upload Time', uploadedDate),
+            _buildDarkDetailRow('Upload Time', uploadedDate),
             if (isDocUploaded && similarity != null) ...[
               const SizedBox(height: 8),
-              _buildDetailRow(
+              _buildDarkDetailRow(
                 'Similarity Score',
                 '${(similarity as num).toStringAsFixed(4)} (${((similarity as num).toDouble() * 100).toStringAsFixed(2)}%)',
               ),
               const SizedBox(height: 8),
-              _buildDetailRow(
+              _buildDarkDetailRow(
                 'Threshold',
                 '${(threshold * 100).toStringAsFixed(1)}%',
               ),
               if (similarity is num) ...[
                 const SizedBox(height: 8),
-                _buildDetailRow(
+                _buildDarkDetailRow(
                   'Decision',
                   status == 'accepted'
                       ? 'Accepted (Below Threshold)'
@@ -498,7 +717,7 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
+  Widget _buildDarkDetailRow(String label, String value, {Color? valueColor}) {
     return Row(
       children: [
         SizedBox(
@@ -507,7 +726,7 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
             label,
             style: const TextStyle(
               fontWeight: FontWeight.w600,
-              color: Colors.grey,
+              color: Colors.white60,
               fontSize: 13,
             ),
           ),
@@ -518,7 +737,8 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
             value,
             style: TextStyle(
               fontWeight: FontWeight.w500,
-              color: valueColor ?? Colors.black87,
+              color: valueColor ?? Colors.white,
+              fontSize: 13,
             ),
           ),
         ),
@@ -532,12 +752,20 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E3F),
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Downloading document...'),
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo.shade700),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Text(
+                'Downloading document...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
       ),
