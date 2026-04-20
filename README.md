@@ -1,3 +1,21 @@
+<<<<<<< HEAD
+# origence
+
+A new Flutter project.
+
+## Getting Started
+
+This project is a starting point for a Flutter application.
+
+A few resources to get you started if this is your first Flutter project:
+
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
+=======
 📄 Origence — Academic Plagiarism Detection System
 
 Origence is a batch-based academic plagiarism detection system designed to ensure document originality within academic environments. It allows faculty to create batches and define similarity thresholds, while students can join batches and submit documents that are checked for plagiarism.
@@ -136,3 +154,4 @@ Arhat
 
 ⭐ Final Note:
 Origence ensures document originality with structured, batch-based plagiarism detection, making it a practical solution for academic institutions.
+>>>>>>> e6c979d13afeae6334e0f63d6b4233253f55fc7a
