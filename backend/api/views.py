@@ -1,4 +1,4 @@
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
@@ -503,3 +503,81 @@ def get_batch_details(request):
     }
 
     return JsonResponse({'status': 'success', 'batch': batch_details})
+
+
+# ---------------------------------------------------------------------------
+# FACULTY: Download Document (Faculty View Only)
+# ---------------------------------------------------------------------------
+@csrf_exempt
+def download_document(request):
+    """
+    GET or POST: /api/download-document/
+    Required: document_id, username (faculty)
+    
+    Allows faculty to download a document uploaded by a student.
+    Faculty can only download documents from batches they created.
+    """
+    if request.method not in ['GET', 'POST']:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=405)
+
+    # Get document_id and username from request
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            document_id = data.get('document_id')
+            username = data.get('username', '').strip()
+        except (json.JSONDecodeError, Exception):
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    else:  # GET
+        document_id = request.GET.get('document_id')
+        username = request.GET.get('username', '').strip()
+
+    if not document_id or not username:
+        return JsonResponse(
+            {'status': 'error', 'message': 'document_id and username are required'},
+            status=400,
+        )
+
+    # Verify faculty exists
+    try:
+        faculty = User.objects.get(username=username, role='faculty')
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Faculty user not found'}, status=404)
+
+    # Get the document
+    try:
+        document = Document.objects.get(id=int(document_id))
+    except (Document.DoesNotExist, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Document not found'}, status=404)
+
+    # Verify that the document's batch was created by this faculty
+    if document.batch.created_by != faculty:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Unauthorized: You can only download documents from your batches'},
+            status=403,
+        )
+
+    # Check if file exists
+    if not document.file:
+        return JsonResponse({'status': 'error', 'message': 'Document file not found'}, status=404)
+
+    try:
+        # Open the file
+        file_path = document.file.path
+        file_handle = open(file_path, 'rb')
+        
+        # Create response with proper headers for download
+        response = FileResponse(
+            file_handle,
+            as_attachment=True,
+            filename=document.file_name
+        )
+        response['Content-Type'] = 'application/pdf'
+        response['Content-Disposition'] = f'attachment; filename="{document.file_name}"'
+        
+        return response
+    except Exception as e:
+        return JsonResponse(
+            {'status': 'error', 'message': f'Failed to download document: {str(e)}'},
+            status=500,
+        )

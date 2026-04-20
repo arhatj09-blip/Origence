@@ -8,6 +8,7 @@ from .views import (
     get_student_batches,
     get_batch_documents,
     get_batch_details,
+    download_document,
 )
 
 urlpatterns = [
@@ -19,4 +20,5 @@ urlpatterns = [
     path('get-student-batches/', get_student_batches, name='get_student_batches'),
     path('get-batch-documents/', get_batch_documents, name='get_batch_documents'),
     path('get-batch-details/', get_batch_details, name='get_batch_details'),
+    path('download-document/', download_document, name='download_document'),
 ]
