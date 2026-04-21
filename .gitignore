@@ -45,10 +45,25 @@ app.*.map.json
 /android/app/release
 .vscode/
 db.sqlite3
-<<<<<<< HEAD
-
 backend/media/
 *.pdf
-=======
+
+# Environment variables
 .env
->>>>>>> main
+backend/.env
+.env.local
+.env.*.local
+
+# Python
+*.pyc
+__pycache__/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Static files
+staticfiles/
