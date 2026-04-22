@@ -1,23 +1,60 @@
+# Version control
 .git
 .gitignore
+.gitattributes
+
+# Python
 *.pyc
 __pycache__
 .venv
 venv
 env
-.env
-.sqlite3
-db.sqlite3
-.DS_Store
 *.egg-info
 dist
 build
 .pytest_cache
 .coverage
+.eggs
+
+# Environment
+.env
+.env.local
+*.pem
+
+# Database
+*.sqlite3
+db.sqlite3
+*.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Frontend (not needed in backend image)
 frontend
+node_modules
+
+# Documentation and assets
 docs
+README.md
+DEPLOYMENT*.md
+RAILWAY*.md
+DELIVERY*.md
+*.bfg-report
 Origence-main
-Origence.git
-Origence.git.bfg-report
-*.md
+Origence.git*
+
+# Build artifacts
+build/
+.next/
+out/
+
+# Misc
 .railwayignore
+.dockerignore
+Procfile
+runtime.txt
