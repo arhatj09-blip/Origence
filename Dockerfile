@@ -9,13 +9,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /usr/share/doc/* \
     && rm -rf /usr/share/man/*
 
-# Copy only backend directory
+# Copy backend files
 COPY backend/requirements.txt /app/
 COPY backend/manage.py /app/
 COPY backend/backend /app/backend/
 COPY backend/api /app/api/
 COPY backend/auth_api /app/auth_api/
 COPY backend/core /app/core/
+
+# Create a 'config' symlink so manage.py can find config.settings
+# manage.py uses DJANGO_SETTINGS_MODULE='config.settings' but the folder is named 'backend'
+RUN ln -s /app/backend /app/config
 
 # Install Python dependencies without cache
 RUN pip install --no-cache-dir -r requirements.txt
