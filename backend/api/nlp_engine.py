@@ -1,11 +1,22 @@
 import re
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
-from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer, util
 
-# Load AI model once (IMPORTANT for performance)
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# ML packages are optional - app works without them using fallback methods
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
+    from sklearn.metrics.pairwise import cosine_similarity
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+    ENGLISH_STOP_WORDS = set()
+
+try:
+    from sentence_transformers import SentenceTransformer, util as st_util
+    _ai_model = SentenceTransformer("all-MiniLM-L6-v2")
+    AI_AVAILABLE = True
+except ImportError:
+    AI_AVAILABLE = False
+    _ai_model = None
 
 
 # ------------------ PREPROCESSING ------------------
@@ -23,12 +34,14 @@ def split_sentences(text):
     if not text:
         return []
     sentences = re.split(r'(?<=[.!?])\s+', text)
-    return [s.strip() for s in sentences if s.strip()]    
+    return [s.strip() for s in sentences if s.strip()]
 
 
 # ------------------ SIMILARITY METHODS ------------------
 
 def tfidf_similarity(s1, s2):
+    if not SKLEARN_AVAILABLE:
+        return 0.0
     if not s1.strip() or not s2.strip():
         return 0.0
     try:
@@ -54,12 +67,14 @@ def ngram_similarity(s1, s2, n=3):
 
 
 def ai_similarity(s1, s2):
+    if not AI_AVAILABLE or _ai_model is None:
+        return 0.0
     if not s1.strip() or not s2.strip():
         return 0.0
     try:
-        e1 = model.encode(s1, convert_to_tensor=True)
-        e2 = model.encode(s2, convert_to_tensor=True)
-        return util.cos_sim(e1, e2).item()
+        e1 = _ai_model.encode(s1, convert_to_tensor=True)
+        e2 = _ai_model.encode(s2, convert_to_tensor=True)
+        return st_util.cos_sim(e1, e2).item()
     except Exception:
         return 0.0
 
@@ -67,23 +82,18 @@ def ai_similarity(s1, s2):
 # ------------------ MAIN FUNCTION ------------------
 
 def compare_docs(doc1, doc2):
-    # Check if documents are empty
     if not doc1.strip() or not doc2.strip():
         return 0.0
 
-    # Clean full documents
     doc1 = clean_text(doc1)
     doc2 = clean_text(doc2)
 
-    # If after cleaning, empty, return 0
     if not doc1 or not doc2:
         return 0.0
 
-    # Split into sentences
     sents1 = split_sentences(doc1)
     sents2 = split_sentences(doc2)
 
-    # If no sentences, return 0
     if not sents1 or not sents2:
         return 0.0
 
@@ -99,12 +109,16 @@ def compare_docs(doc1, doc2):
                 ng = ngram_similarity(s1, s2)
                 ai = ai_similarity(s1, s2)
 
-                # Weighted score
-                score = (0.55 * tf) + (0.25 * ng) + (0.20 * ai)
+                # Adjust weights based on available methods
+                if SKLEARN_AVAILABLE and AI_AVAILABLE:
+                    score = (0.55 * tf) + (0.25 * ng) + (0.20 * ai)
+                elif SKLEARN_AVAILABLE:
+                    score = (0.70 * tf) + (0.30 * ng)
+                else:
+                    score = float(ng)  # ngram only, no dependencies needed
 
                 best_score = max(best_score, score)
             except Exception:
-                # If any similarity method fails, skip this pair
                 continue
 
         if best_score > 0:
@@ -134,7 +148,12 @@ def compare_with_details(doc1, doc2):
             ng = ngram_similarity(s1, s2)
             ai = ai_similarity(s1, s2)
 
-            score = (0.55 * tf) + (0.25 * ng) + (0.20 * ai)
+            if SKLEARN_AVAILABLE and AI_AVAILABLE:
+                score = (0.55 * tf) + (0.25 * ng) + (0.20 * ai)
+            elif SKLEARN_AVAILABLE:
+                score = (0.70 * tf) + (0.30 * ng)
+            else:
+                score = float(ng)
 
             if score > 0.7:
                 results.append({

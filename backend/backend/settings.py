@@ -8,7 +8,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Django settings from environment variables
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-please-change-this-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,origence.up.railway.app', cast=Csv())
+
+CSRF_TRUSTED_ORIGINS = ['https://origence.up.railway.app']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
