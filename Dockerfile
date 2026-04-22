@@ -18,8 +18,7 @@ COPY backend/auth_api /app/auth_api/
 COPY backend/core /app/core/
 
 # Install Python dependencies without cache
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Set environment for HuggingFace - don't download models during build
 ENV HF_HUB_DISABLE_TELEMETRY=1 \
