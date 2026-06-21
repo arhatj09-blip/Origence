@@ -4,9 +4,7 @@ import sys
 import subprocess
 import time
 
-# Change to backend directory
-os.chdir(os.path.join(os.path.dirname(__file__), '..', 'backend'))
-
+# We're already in the backend directory, so no need to chdir
 print("Starting Origence application...")
 print(f"Working directory: {os.getcwd()}")
 print(f"Python path: {sys.executable}")
