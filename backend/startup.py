@@ -79,32 +79,3 @@ try:
 except Exception as e:
     print(f"✗ Failed to start Gunicorn: {e}")
     sys.exit(1)
-    except Exception as e:
-        if i < 5:
-            print(f"✗ Attempt {i} failed: {e}. Waiting 5 seconds...")
-            time.sleep(5)
-        else:
-            print(f"⚠ Migrations failed after 5 attempts: {e}. Continuing anyway...")
-
-# Collect static files
-print("Collecting static files...")
-try:
-    subprocess.run(
-        [sys.executable, 'manage.py', 'collectstatic', '--noinput'],
-        capture_output=True,
-        timeout=60
-    )
-    print("✓ Static files collected")
-except Exception as e:
-    print(f"⚠ Static files collection failed: {e}")
-
-# Start Gunicorn
-print("Starting Gunicorn server...")
-port = os.environ.get('PORT', '8000')
-os.execvp(sys.executable, [
-    sys.executable, '-m', 'gunicorn',
-    'config.wsgi:application',
-    '--bind', f'0.0.0.0:{port}',
-    '--workers', '3',
-    '--timeout', '120'
-])
