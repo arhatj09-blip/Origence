@@ -11,8 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download SentenceTransformer model weights during build to prevent timeout during runtime startup
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 COPY backend/manage.py /app/
 COPY backend/startup.py /app/

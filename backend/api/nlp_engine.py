@@ -10,13 +10,29 @@ except ImportError:
     SKLEARN_AVAILABLE = False
     ENGLISH_STOP_WORDS = set()
 
-try:
-    from sentence_transformers import SentenceTransformer, util as st_util
-    _ai_model = SentenceTransformer("all-MiniLM-L6-v2")
-    AI_AVAILABLE = True
-except ImportError:
-    AI_AVAILABLE = False
-    _ai_model = None
+# SentenceTransformer is lazy-loaded to prevent slow startup and build/migration crashes.
+_ai_model = None
+AI_AVAILABLE = None  # None: not checked, True: loaded successfully, False: unavailable/failed
+
+def get_ai_model():
+    global _ai_model, AI_AVAILABLE
+    if AI_AVAILABLE is False:
+        return None
+    if _ai_model is not None:
+        return _ai_model
+    try:
+        from sentence_transformers import SentenceTransformer
+        print("Loading SentenceTransformer model 'all-MiniLM-L6-v2'...")
+        _ai_model = SentenceTransformer("all-MiniLM-L6-v2")
+        AI_AVAILABLE = True
+        print("SentenceTransformer loaded successfully.")
+        return _ai_model
+    except Exception as e:
+        print(f"Failed to load SentenceTransformer: {e}")
+        AI_AVAILABLE = False
+        _ai_model = None
+        return None
+
 
 
 # ------------------ PREPROCESSING ------------------
@@ -67,16 +83,20 @@ def ngram_similarity(s1, s2, n=3):
 
 
 def ai_similarity(s1, s2):
-    if not AI_AVAILABLE or _ai_model is None:
+    model = get_ai_model()
+    if model is None:
         return 0.0
     if not s1.strip() or not s2.strip():
         return 0.0
     try:
-        e1 = _ai_model.encode(s1, convert_to_tensor=True)
-        e2 = _ai_model.encode(s2, convert_to_tensor=True)
+        from sentence_transformers import util as st_util
+        e1 = model.encode(s1, convert_to_tensor=True)
+        e2 = model.encode(s2, convert_to_tensor=True)
         return st_util.cos_sim(e1, e2).item()
-    except Exception:
+    except Exception as e:
+        print(f"Error during AI similarity calculation: {e}")
         return 0.0
+
 
 
 # ------------------ MAIN FUNCTION ------------------
